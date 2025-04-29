@@ -5,7 +5,7 @@ import styled from 'styled-components'
 
 import { useAppDispatch, useAppSelector } from '../../app/hooks'
 import { searchScope } from '../../config/searchTypes'
-import { checkForStopWords, translate } from '../../lib/util/translate'
+import { translate } from '../../lib/util/translate'
 import {
   addSimpleSearchInput,
   ISimpleSearchState,
@@ -100,16 +100,25 @@ const SearchBox: React.FC<{
   const submitHandler = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault()
     if (validateInput()) {
-      const valueToSubmit = checkForStopWords(currentState.value!)
       translate({
-        query: valueToSubmit,
+        query: currentState.value!,
         scope: searchScope[tab],
         onSuccess: (translatedString) => {
           const newUrlParams = new URLSearchParams()
           const query = JSON.parse(translatedString)
+          const tabMap = {
+            item: 'objects',
+            work: 'works',
+            agent: 'people',
+            concept: 'concepts',
+            place: 'places',
+            event: 'events',
+          }
+          var newScope = query._scope
+          var newTab = tabMap[newScope]
           delete query._scope
           newUrlParams.set('q', JSON.stringify(query))
-          newUrlParams.set('sq', valueToSubmit)
+          newUrlParams.set('sq', currentState.value as string)
           if (closeSearchBox) {
             closeSearchBox()
           }
@@ -119,7 +128,7 @@ const SearchBox: React.FC<{
           pushClientEvent('Search Button', 'Submit', 'Simple Search')
           navigate(
             {
-              pathname: `/view/results/${tab}`,
+              pathname: `/view/results/${newTab}`,
               search: `${newUrlParams.toString()}`,
             },
             {

@@ -9,12 +9,11 @@ import Landing from '../landing/LandingPage'
 import ResultsPage from '../results/ResultsPage'
 import Header from '../header/Header'
 import CmsRoutingComponent from '../cms/CmsRoutingComponent'
-import { pushClientPageEvent } from '../../lib/pushClientEvent'
-import { getTargetName } from '../../lib/util/uri'
+// import { pushClientPageEvent } from '../../lib/pushClientEvent'
+// import { getTargetName } from '../../lib/util/uri'
 import { getRouteNames } from '../../config/routerPages'
 import useResizeableWindow from '../../lib/hooks/useResizeableWindow'
 import theme from '../../styles/theme'
-import AdvancedSearchConfig from '../advancedSearchConfig/AdvancedSearchConfig'
 
 import Footer from './Footer'
 
@@ -61,6 +60,7 @@ const LuxRoutes: React.FC = () => {
     }${pathname === '/' ? '/landing' : pathname}${search}`
 
     // Get the target page name based on the current url
+    /*
     const targetName = getTargetName(
       pathname,
       routes,
@@ -68,9 +68,10 @@ const LuxRoutes: React.FC = () => {
       isSuccess,
       data,
     )
+  */
 
     // Push a tracking event for a page change
-    pushClientPageEvent(currentUrl, prevUrl, targetName)
+    // pushClientPageEvent(currentUrl, prevUrl, targetName)
     setPrevUrl(currentUrl)
   }, [data, isNotAnEntityPage, isSuccess, pathname, prevUrl, routes, search])
 
@@ -108,10 +109,6 @@ const LuxRoutes: React.FC = () => {
           {/* BEGIN CMS pages */}
           <Route path="/content/:pageKey" element={<CmsRoutingComponent />} />
           {/* END CMS pages */}
-          <Route
-            path="/view/advanced-search-config"
-            element={<AdvancedSearchConfig />}
-          />
 
           <Route path="*" element={<ErrorPage code={404} />} />
         </Routes>
