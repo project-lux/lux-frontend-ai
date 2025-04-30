@@ -81,22 +81,11 @@ const SearchButtonContainer = styled.div`
 
   .rewritten-text {
     font-weight: bold;
-    margin-bottom: 10px;
     color: white;
     font-style: italic;
     font-size: 1.1rem;
     letter-spacing: 0.01em;
-  }
-
-  .query-json {
-    font-family: monospace;
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.9);
-    background-color: rgba(0, 0, 0, 0.2);
-    padding: 10px;
-    border-radius: 4px;
-    max-height: 200px;
-    overflow-y: auto;
+    line-height: 1.4;
   }
 `
 
@@ -136,6 +125,7 @@ const SearchBox: React.FC<{
   const [translatedQueries, setTranslatedQueries] = useState<
     ITranslatedQuery[]
   >([])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const currentState = useAppSelector(
     (state) => state.simpleSearch as ISimpleSearchState,
   )
@@ -177,8 +167,19 @@ const SearchBox: React.FC<{
 
   const fetchTranslateMulti = (): void => {
     setIsLoading(true)
+    setErrorMessage(null)
     const urlParams = new URLSearchParams()
-    urlParams.set('q', currentState.value!)
+
+    // Validate input before sending
+    if (!currentState.value || currentState.value.trim() === '') {
+      setErrorMessage('Please enter a search query')
+      setIsError(true)
+      setIsLoading(false)
+      console.error('Invalid search string: empty or undefined')
+      return
+    }
+
+    urlParams.set('q', currentState.value)
     console.log(
       `http://10.5.35.3:8080/api/translate_multi/item?${urlParams.toString()}`,
     )
@@ -188,30 +189,48 @@ const SearchBox: React.FC<{
     )
       .then((response) => {
         if (response.ok) {
-          response.json().then((data: ITranslationResponse) => {
-            if (data.ambiguous && data.options && data.options.length > 0) {
-              const translatedOptions = data.options.map((option) => ({
-                query: option.q,
-                scope: option.q._scope as string,
-                rewritten: option.rewritten,
-                likelihood: option.likelihood,
-              }))
-              setTranslatedQueries(translatedOptions)
-            } else if (data.options && data.options.length > 0) {
-              // Even if not ambiguous, still show the single option
-              const translatedOptions = data.options.map((option) => ({
-                query: option.q,
-                scope: option.q._scope as string,
-                rewritten: option.rewritten,
-                likelihood: option.likelihood,
-              }))
-              setTranslatedQueries(translatedOptions)
-            }
-            setIsLoading(false)
-          })
+          response
+            .json()
+            .then((data: ITranslationResponse) => {
+              if (data && data.options && data.options.length > 0) {
+                const translatedOptions = data.options.map((option) => ({
+                  query: option.q,
+                  scope: (option.q._scope as string) || 'item',
+                  rewritten: option.rewritten,
+                  likelihood: option.likelihood,
+                }))
+                setTranslatedQueries(translatedOptions)
+                setIsLoading(false)
+              } else {
+                // No valid options returned
+                console.error('No valid translation options returned', data)
+                setErrorMessage(
+                  "We couldn't understand that query. Try rephrasing it or use simpler terms.",
+                )
+                setIsError(true)
+                setIsLoading(false)
+              }
+            })
+            .catch((error) => {
+              console.error('Error parsing JSON response:', error)
+              setErrorMessage('An error occurred while processing your search')
+              setIsError(true)
+              setIsLoading(false)
+            })
         } else {
+          console.error('API returned error status:', response.status)
           setIsLoading(false)
           setIsError(true)
+
+          // Try to get more details about the error
+          response
+            .text()
+            .then((text) => {
+              console.error('Error response:', text)
+            })
+            .catch(() => {
+              console.error('Could not read error response')
+            })
         }
       })
       .catch((error) => {
@@ -234,10 +253,25 @@ const SearchBox: React.FC<{
       concept: 'concepts',
       place: 'places',
       event: 'events',
+      set: 'collections',
+      Group: 'collections', // Add potential raw value mappings
+      Person: 'people',
+      Organization: 'people',
+      VisualItem: 'objects',
+      PhysicalObject: 'objects',
+      Set: 'collections',
     }
 
-    // Get the tab from the scope
-    const newTab = tabMap[scope as keyof typeof tabMap]
+    // Enhanced debug logging to identify the issue
+    console.log('Original scope from selection:', scope)
+    console.log('Original query:', query)
+
+    // Get the tab from the scope with a fallback
+    const scopeToUse = scope || (query._scope as string) || 'item'
+    const newTab = tabMap[scopeToUse as keyof typeof tabMap] || 'objects' // Default to objects if mapping fails
+
+    console.log('Scope used for tab mapping:', scopeToUse)
+    console.log('Resulting tab:', newTab)
 
     // Make a copy of the query to avoid mutating the original
     const queryToUse = { ...query }
@@ -249,9 +283,6 @@ const SearchBox: React.FC<{
 
     // Set the query parameter for the URL - exactly as received from the API
     newUrlParams.set('q', JSON.stringify(queryToUse))
-
-    // Set original query as sq (you might want to remove this if it's causing issues)
-    // newUrlParams.set('sq', currentState.value as string)
 
     // Debug logging
     console.log('Navigation query:', queryToUse)
@@ -344,6 +375,13 @@ const SearchBox: React.FC<{
             </div>
           </form>
         </StyledSearchBox>
+
+        {errorMessage && (
+          <div className="alert alert-danger mt-3" role="alert">
+            {errorMessage}
+          </div>
+        )}
+
         {translatedQueries.length > 0 && (
           <SearchButtonContainer>
             <div className="mb-3 text-center">
@@ -358,12 +396,13 @@ const SearchBox: React.FC<{
                 onClick={() => handleNavigate(option.query, option.scope)}
                 title="Click to search using this interpretation"
               >
-                {option.rewritten && (
+                {option.rewritten ? (
                   <div className="rewritten-text">{option.rewritten}</div>
+                ) : (
+                  <div className="rewritten-text">
+                    Search option {index + 1}
+                  </div>
                 )}
-                <div className="query-json">
-                  {JSON.stringify(option.query, null, 2)}
-                </div>
                 {option.likelihood !== undefined && (
                   <span className="likelihood-badge">
                     {Math.round(option.likelihood * 100)}%
