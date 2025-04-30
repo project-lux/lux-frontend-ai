@@ -7,7 +7,7 @@ interface ITranslateParameters {
   onError: () => void
   onLoading: () => void
 }
-
+console.log(getDataApiBaseUrl())
 export function translate({
   query,
   scope,

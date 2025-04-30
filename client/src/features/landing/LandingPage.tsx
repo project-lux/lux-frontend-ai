@@ -45,7 +45,9 @@ const Landing: React.FC = () => {
       <Col xs={12} className="px-0">
         <Row className="mx-0 bg-white">
           <HeaderContainerCol className="col-12 text-center">
-            <StyledHeadingOne>Explore Yale Collections</StyledHeadingOne>
+            <StyledHeadingOne>
+              Let AI help you explore Yale Collections
+            </StyledHeadingOne>
           </HeaderContainerCol>
         </Row>
         <StickySearchContainer />
